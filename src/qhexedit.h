@@ -8,13 +8,7 @@
 #include "chunks.h"
 #include "commands.h"
 
-#ifdef QHEXEDIT_EXPORTS
-#define QHEXEDIT_API Q_DECL_EXPORT
-#elif QHEXEDIT_IMPORTS
-#define QHEXEDIT_API Q_DECL_IMPORT
-#else
-#define QHEXEDIT_API
-#endif
+#include "qhexedit_global.h"
 
 /** \mainpage
 QHexEdit is a binary editor widget for Qt.
@@ -66,7 +60,7 @@ class QHEXEDIT_API QHexEdit : public QAbstractScrollArea
     Q_PROPERTY(bool addressArea READ addressArea WRITE setAddressArea)
 
     /*! Property address area color sets (setAddressAreaColor()) the background
-    color of address areas. You can also read the color (addressAreaColor()).
+    color of address areas. You can also read the color (addressaAreaColor()).
     */
     Q_PROPERTY(QColor addressAreaColor READ addressAreaColor WRITE setAddressAreaColor)
 
@@ -106,7 +100,7 @@ class QHEXEDIT_API QHexEdit : public QAbstractScrollArea
     */
     Q_PROPERTY(bool hexCaps READ hexCaps WRITE setHexCaps)
 
-    /*! Property defines the dynamic calculation of bytesPerLine parameter depends of width of widget.
+    /*! Property defines the dynamic calculation of bytesPerLine parameter depends of width of widget. 
     set this property true to avoid horizontal scrollbars and show the maximal possible data. defalut value is false*/
     Q_PROPERTY(bool dynamicBytesPerLine READ dynamicBytesPerLine WRITE setDynamicBytesPerLine)
 
@@ -126,6 +120,11 @@ class QHEXEDIT_API QHexEdit : public QAbstractScrollArea
     new data.
     */
     Q_PROPERTY(bool overwriteMode READ overwriteMode WRITE setOverwriteMode)
+
+	/*! Property disable insert ensures the controll can not enter insert mode,
+	this is desirable when editing resources which can only be overwriten but not resized.
+    */
+    Q_PROPERTY(bool disableInsert READ disableInsert WRITE setDisableInsert)
 
     /*! Property selection color sets (setSelectionColor()) the background
     color of selected text areas. You can also read the color
@@ -155,7 +154,12 @@ public:
     and closed immediately afterwards. This is to allow other programs to rewrite
     the file while editing it.
     */
-    bool setData(QIODevice &iODevice);
+    bool setData(QIODevice *iODevice);
+
+	/*! Re reads the data from the iODevice and clears the modifyed flags. This
+	does not clear the undo stack or reset the current position. 
+    */
+	bool refreshData();
 
     /*! Gives back the data as a QByteArray starting at position \param pos and
     delivering \param count bytes.
@@ -167,6 +171,10 @@ public:
     */
     bool write(QIODevice &iODevice, qint64 pos=0, qint64 count=-1);
 
+	/*! When writing the entire file is not desired, a list of modifyed chunks 
+	can be obtained such that only modifyed areas can be written.
+     */
+	QList<QHexEditChunk> getChunks() { return _chunks->getChunks(); }
 
     // Char handling
 
@@ -268,6 +276,18 @@ public slots:
       */
     void undo();
 
+    /*! issues copy operation same as Ctrl+C
+      */
+	void copy();
+
+	/*! issues cut operation same as Ctrl+X
+      */
+	void cut();
+
+	/*! issues paste operation same as Ctrl+V
+      */
+	void paste();
+
 signals:
 
     /*! Contains the address, where the cursor is located. */
@@ -326,6 +346,9 @@ public:
 
     bool overwriteMode();
     void setOverwriteMode(bool overwriteMode);
+
+	bool disableInsert();
+    void setDisableInsert(bool disableInsert);
 
     bool isReadOnly();
     void setReadOnly(bool readOnly);
@@ -392,6 +415,7 @@ private:
     int _hexCharsInLine;
     bool _highlighting;
     bool _overwriteMode;
+	bool _disableInsert;
     QBrush _brushSelection;
     QPen _penSelection;
     QBrush _brushHighlighted;

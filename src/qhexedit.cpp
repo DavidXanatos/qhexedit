@@ -16,6 +16,7 @@ QHexEdit::QHexEdit(QWidget *parent) : QAbstractScrollArea(parent)
     _addressWidth = 4;
     _asciiArea = true;
     _overwriteMode = true;
+	_disableInsert = false;
     _highlighting = true;
     _readOnly = false;
     _cursorPosition = 0;
@@ -223,7 +224,7 @@ void QHexEdit::setData(const QByteArray &ba)
 {
     _data = ba;
     _bData.setData(_data);
-    setData(_bData);
+    setData(&_bData);
 }
 
 QByteArray QHexEdit::data()
@@ -256,6 +257,8 @@ QColor QHexEdit::highlightingColor()
 
 void QHexEdit::setOverwriteMode(bool overwriteMode)
 {
+	if (!_disableInsert)
+		return; // no not allow to disable overwrite mode
     _overwriteMode = overwriteMode;
     emit overwriteModeChanged(overwriteMode);
 }
@@ -263,6 +266,18 @@ void QHexEdit::setOverwriteMode(bool overwriteMode)
 bool QHexEdit::overwriteMode()
 {
     return _overwriteMode;
+}
+
+void QHexEdit::setDisableInsert(bool disableInsert)
+{
+    _disableInsert = disableInsert;
+    _overwriteMode = true;
+    emit overwriteModeChanged(_overwriteMode);
+}
+
+bool QHexEdit::disableInsert()
+{
+    return _disableInsert;
 }
 
 void QHexEdit::setSelectionColor(const QColor &color)
@@ -313,11 +328,21 @@ bool QHexEdit::dynamicBytesPerLine()
 }
 
 // ********************************************************************** Access to data of qhexedit
-bool QHexEdit::setData(QIODevice &iODevice)
+bool QHexEdit::setData(QIODevice *iODevice)
 {
     bool ok = _chunks->setIODevice(iODevice);
     init();
     dataChangedPrivate();
+    return ok;
+}
+
+bool QHexEdit::refreshData()
+{
+    bool ok = _chunks->setIODevice(_chunks->getIODevice());
+	//_undoStack->clear();
+    //_modified = false;
+    dataChangedPrivate();
+	refresh();
     return ok;
 }
 
@@ -454,6 +479,63 @@ void QHexEdit::undo()
     setCursorPosition(_chunks->pos()*(_editAreaIsAscii ? 1 : 2));
     refresh();
 }
+
+void QHexEdit::copy()
+{
+	QClipboard *clipboard = QApplication::clipboard();
+	if (_editAreaIsAscii)
+	{
+		clipboard->setText(_chunks->data(getSelectionBegin(), getSelectionEnd() - getSelectionBegin()));
+	}
+	else
+	{
+		QByteArray ba = _chunks->data(getSelectionBegin(), getSelectionEnd() - getSelectionBegin()).toHex();
+		for (qint64 idx = 32; idx < ba.size(); idx += 33)
+			ba.insert(idx, "\n");
+		clipboard->setText(ba);
+	}
+}
+
+void QHexEdit::cut()
+{
+	copy();
+
+	if (_overwriteMode)
+	{
+		qint64 len = getSelectionEnd() - getSelectionBegin();
+		replace(getSelectionBegin(), (int)len, QByteArray((int)len, char(0)));
+	}
+	else
+	{
+		remove(getSelectionBegin(), getSelectionEnd() - getSelectionBegin());
+	}
+	setCursorPosition(2 * getSelectionBegin());
+	resetSelection(2 * getSelectionBegin());
+}
+
+void QHexEdit::paste()
+{
+    QClipboard *clipboard = QApplication::clipboard();
+    QByteArray ba = clipboard->text().toLatin1();
+	if (!_editAreaIsAscii)
+	{
+		ba = ba.simplified().replace(" ", "");
+		QByteArray bba = QByteArray().fromHex(ba);
+		if (bba.length() * 2 != ba.length())
+			return;
+		ba = bba;
+	}
+    if (_overwriteMode)
+    {
+        ba = ba.left(std::min<qint64>(ba.size(), (_chunks->size() - _bPosCurrent)));
+        replace(_bPosCurrent, ba.size(), ba);
+    }
+    else
+        insert(_bPosCurrent, ba);
+    setCursorPosition(_cursorPosition + 2 * ba.size());
+    resetSelection(getSelectionBegin());
+}
+
 
 // ********************************************************************** Handle events
 void QHexEdit::keyPressEvent(QKeyEvent *event)
@@ -595,38 +677,13 @@ void QHexEdit::keyPressEvent(QKeyEvent *event)
         /* Cut */
         if (event->matches(QKeySequence::Cut))
         {
-            QByteArray ba = _chunks->data(getSelectionBegin(), getSelectionEnd() - getSelectionBegin()).toHex();
-            for (qint64 idx = 32; idx < ba.size(); idx +=33)
-                ba.insert(idx, "\n");
-            QClipboard *clipboard = QApplication::clipboard();
-            clipboard->setText(ba);
-            if (_overwriteMode)
-            {
-                qint64 len = getSelectionEnd() - getSelectionBegin();
-                replace(getSelectionBegin(), (int)len, QByteArray((int)len, char(0)));
-            }
-            else
-            {
-                remove(getSelectionBegin(), getSelectionEnd() - getSelectionBegin());
-            }
-            setCursorPosition(2 * getSelectionBegin());
-            resetSelection(2 * getSelectionBegin());
+			cut();
         } else
 
         /* Paste */
         if (event->matches(QKeySequence::Paste))
         {
-            QClipboard *clipboard = QApplication::clipboard();
-            QByteArray ba = QByteArray().fromHex(clipboard->text().toLatin1());
-            if (_overwriteMode)
-            {
-                ba = ba.left(std::min<qint64>(ba.size(), (_chunks->size() - _bPosCurrent)));
-                replace(_bPosCurrent, ba.size(), ba);
-            }
-            else
-                insert(_bPosCurrent, ba);
-            setCursorPosition(_cursorPosition + 2 * ba.size());
-            resetSelection(getSelectionBegin());
+			paste();
         } else
 
         /* Delete char */
@@ -770,15 +827,11 @@ void QHexEdit::keyPressEvent(QKeyEvent *event)
     /* Copy */
     if (event->matches(QKeySequence::Copy))
     {
-        QByteArray ba = _chunks->data(getSelectionBegin(), getSelectionEnd() - getSelectionBegin()).toHex();
-        for (qint64 idx = 32; idx < ba.size(); idx +=33)
-            ba.insert(idx, "\n");
-        QClipboard *clipboard = QApplication::clipboard();
-        clipboard->setText(ba);
+		copy();
     }
 
     // Switch between insert/overwrite mode
-    if ((event->key() == Qt::Key_Insert) && (event->modifiers() == Qt::NoModifier))
+    if ((event->key() == Qt::Key_Insert) && (event->modifiers() == Qt::NoModifier) && !_disableInsert)
     {
         setOverwriteMode(!overwriteMode());
         setCursorPosition(_cursorPosition);
@@ -917,11 +970,11 @@ void QHexEdit::paintEvent(QPaintEvent *event)
         painter.setPen(viewport()->palette().color(QPalette::WindowText));
     }
 
-    // _cursorPosition counts in 2, _bPosFirst counts in 1
-    int hexPositionInShowData = _cursorPosition - 2 * _bPosFirst;
+	// _cursorPosition counts in 2, _bPosFirst counts in 1
+	int hexPositionInShowData = _cursorPosition - 2 * _bPosFirst;
 
-    // due to scrolling the cursor can go out of the currently displayed data
-    if ((hexPositionInShowData >= 0) && (hexPositionInShowData < _hexDataShown.size()))
+	// due to scrolling the cursor can go out of the currently displayed data
+	if ((hexPositionInShowData >= 0) && (hexPositionInShowData < _hexDataShown.size()))
     {
             // paint cursor
             if (_readOnly)
@@ -971,11 +1024,11 @@ void QHexEdit::resizeEvent(QResizeEvent *)
             pxFixGaps += _pxGapHexAscii;
 
         // +1 because the last hex value do not have space. so it is effective one char more
-        int charWidth = (viewport()->width() - pxFixGaps ) / _pxCharWidth + 1;
+        int charWidth = (viewport()->width() - pxFixGaps ) / _pxCharWidth + 1; 
 
         // 2 hex alfa-digits 1 space 1 ascii per byte = 4; if ascii is disabled then 3
         // to prevent devision by zero use the min value 1
-        setBytesPerLine(std::max(charWidth / (_asciiArea ? 4 : 3),1));
+        setBytesPerLine(std::max(charWidth / (_asciiArea ? 4 : 3),1));  
     }
     adjust();
 }

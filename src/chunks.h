@@ -19,11 +19,14 @@
 
 #include <QtCore>
 
-struct Chunk
+#include "qhexedit_global.h"
+
+struct QHEXEDIT_API QHexEditChunk
 {
     QByteArray data;
     QByteArray dataChanged;
     qint64 absPos;
+	int initSize;
 };
 
 class Chunks: public QObject
@@ -32,12 +35,16 @@ Q_OBJECT
 public:
     // Constructors and file settings
     Chunks(QObject *parent);
-    Chunks(QIODevice &ioDevice, QObject *parent);
-    bool setIODevice(QIODevice &ioDevice);
+    //Chunks(QIODevice &ioDevice, QObject *parent);
+    bool setIODevice(QIODevice* ioDevice);
+	QIODevice* getIODevice();
 
     // Getting data out of Chunks
     QByteArray data(qint64 pos=0, qint64 count=-1, QByteArray *highlighted=0);
     bool write(QIODevice &iODevice, qint64 pos=0, qint64 count=-1);
+
+	// Getting the Chunks directly
+	QList<QHexEditChunk> getChunks() { return _chunks; };
 
     // Set and get highlighting infos
     void setDataChanged(qint64 pos, bool dataChanged);
@@ -64,7 +71,7 @@ private:
     QIODevice * _ioDevice;
     qint64 _pos;
     qint64 _size;
-    QList<Chunk> _chunks;
+    QList<QHexEditChunk> _chunks;
 
 #ifdef MODUL_TEST
 public:

@@ -1,22 +1,23 @@
-#include "searchdialog.h"
-#include "ui_searchdialog.h"
+#include "HexEditorSearch.h"
+#include "ui_HexEditorSearch.h"
 
+#include "../src/qhexedit.h"
 #include <QMessageBox>
 
-SearchDialog::SearchDialog(QHexEdit *hexEdit, QWidget *parent) :
+QHexEditorSearch::QHexEditorSearch(QHexEdit *hexEdit, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::SearchDialog)
+    ui(new Ui::HexEditorSearch)
 {
   ui->setupUi(this);
   _hexEdit = hexEdit;
 }
 
-SearchDialog::~SearchDialog()
+QHexEditorSearch::~QHexEditorSearch()
 {
   delete ui;
 }
 
-qint64 SearchDialog::findNext()
+qint64 QHexEditorSearch::findNext()
 {
     qint64 from = _hexEdit->cursorPosition() / 2;
     _findBa = getContent(ui->cbFindFormat->currentIndex(), ui->cbFind->currentText());
@@ -32,12 +33,12 @@ qint64 SearchDialog::findNext()
     return idx;
 }
 
-void SearchDialog::on_pbFind_clicked()
+void QHexEditorSearch::on_pbFind_clicked()
 {
     findNext();
 }
 
-void SearchDialog::on_pbReplace_clicked()
+void QHexEditorSearch::on_pbReplace_clicked()
 {
     int idx = findNext();
     if (idx >= 0)
@@ -47,7 +48,7 @@ void SearchDialog::on_pbReplace_clicked()
     }
 }
 
-void SearchDialog::on_pbReplaceAll_clicked()
+void QHexEditorSearch::on_pbReplaceAll_clicked()
 {
     int replaceCounter = 0;
     int idx = 0;
@@ -74,7 +75,7 @@ void SearchDialog::on_pbReplaceAll_clicked()
 }
 
 
-QByteArray SearchDialog::getContent(int comboIndex, const QString &input)
+QByteArray QHexEditorSearch::getContent(int comboIndex, const QString &input)
 {
     QByteArray findBa;
     switch (comboIndex)
@@ -89,7 +90,7 @@ QByteArray SearchDialog::getContent(int comboIndex, const QString &input)
     return findBa;
 }
 
-qint64 SearchDialog::replaceOccurrence(qint64 idx, const QByteArray &replaceBa)
+qint64 QHexEditorSearch::replaceOccurrence(qint64 idx, const QByteArray &replaceBa)
 {
     int result = QMessageBox::Yes;
     if (replaceBa.length() >= 0)

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>OptionsDialog</class>
- <widget class="QDialog" name="OptionsDialog">
+ <class>HexEditorOptions</class>
+ <widget class="QDialog" name="HexEditorOptions">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -208,7 +208,7 @@
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>6</number>
+         <number>16</number>
         </property>
         <property name="value">
          <number>4</number>
@@ -237,7 +237,7 @@
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>32</number>
+         <number>128</number>
         </property>
         <property name="value">
          <number>16</number>
@@ -282,7 +282,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>OptionsDialog</receiver>
+   <receiver>HexEditorOptions</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -298,7 +298,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>OptionsDialog</receiver>
+   <receiver>HexEditorOptions</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

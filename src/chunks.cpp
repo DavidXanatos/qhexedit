@@ -13,17 +13,17 @@
 Chunks::Chunks(QObject *parent): QObject(parent)
 {
     QBuffer *buf = new QBuffer(this);
-    setIODevice(*buf);
+    setIODevice(buf);
 }
 
-Chunks::Chunks(QIODevice &ioDevice, QObject *parent): QObject(parent)
+/*Chunks::Chunks(QIODevice &ioDevice, QObject *parent): QObject(parent)
 {
-    setIODevice(ioDevice);
-}
+    setIODevice(&ioDevice);
+}*/
 
-bool Chunks::setIODevice(QIODevice &ioDevice)
+bool Chunks::setIODevice(QIODevice* ioDevice)
 {
-    _ioDevice = &ioDevice;
+    _ioDevice = ioDevice;
     bool ok = _ioDevice->open(QIODevice::ReadOnly);
     if (ok)   // Try to open IODevice
     {
@@ -41,6 +41,10 @@ bool Chunks::setIODevice(QIODevice &ioDevice)
     return ok;
 }
 
+QIODevice* Chunks::getIODevice()
+{
+	return _ioDevice;
+}
 
 // ***************************************** Getting data out of Chunks
 
@@ -49,7 +53,7 @@ QByteArray Chunks::data(qint64 pos, qint64 maxSize, QByteArray *highlighted)
     qint64 ioDelta = 0;
     int chunkIdx = 0;
 
-    Chunk chunk;
+    QHexEditChunk chunk;
     QByteArray buffer;
 
     // Do some checks and some arrangements
@@ -70,6 +74,7 @@ QByteArray Chunks::data(qint64 pos, qint64 maxSize, QByteArray *highlighted)
     while (maxSize > 0)
     {
         chunk.absPos = LLONG_MAX;
+		chunk.initSize = 0;
         bool chunksLoopOngoing = true;
         while ((chunkIdx < _chunks.count()) && chunksLoopOngoing)
         {
@@ -281,7 +286,7 @@ int Chunks::getChunkIndex(qint64 absPos)
 
     for (int idx=0; idx < _chunks.size(); idx++)
     {
-        Chunk chunk = _chunks[idx];
+        QHexEditChunk chunk = _chunks[idx];
         if ((absPos >= chunk.absPos) && (absPos < (chunk.absPos + chunk.data.size())))
         {
             foundIdx = idx;
@@ -298,12 +303,13 @@ int Chunks::getChunkIndex(qint64 absPos)
 
     if (foundIdx == -1)
     {
-        Chunk newChunk;
+        QHexEditChunk newChunk;
         qint64 readAbsPos = absPos - ioDelta;
         qint64 readPos = (readAbsPos & READ_CHUNK_MASK);
         _ioDevice->open(QIODevice::ReadOnly);
         _ioDevice->seek(readPos);
         newChunk.data = _ioDevice->read(CHUNK_SIZE);
+		newChunk.initSize = newChunk.data.size();
         _ioDevice->close();
         newChunk.absPos = absPos - (readAbsPos - readPos);
         newChunk.dataChanged = QByteArray(newChunk.data.size(), char(0));

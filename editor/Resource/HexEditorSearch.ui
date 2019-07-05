@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>SearchDialog</class>
- <widget class="QDialog" name="SearchDialog">
+ <class>HexEditorSearch</class>
+ <widget class="QDialog" name="HexEditorSearch">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -183,16 +183,16 @@
   <connection>
    <sender>pbCancel</sender>
    <signal>clicked()</signal>
-   <receiver>SearchDialog</receiver>
+   <receiver>HexEditorSearch</receiver>
    <slot>hide()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>360</x>
-     <y>134</y>
+     <x>388</x>
+     <y>108</y>
     </hint>
     <hint type="destinationlabel">
-     <x>364</x>
-     <y>162</y>
+     <x>217</x>
+     <y>111</y>
     </hint>
    </hints>
   </connection>
